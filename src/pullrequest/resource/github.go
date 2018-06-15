@@ -3,7 +3,12 @@ package resource
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
+	"html/template"
 	"net/http"
+	"os"
+	"os/exec"
+	"path"
 
 	"github.com/google/go-github/github"
 	"golang.org/x/oauth2"
@@ -12,6 +17,7 @@ import (
 // Github is
 type Github interface {
 	ListPRs(*github.PullRequestListOptions) ([]*github.PullRequest, error)
+	DownloadPR(string, int) error
 }
 
 // GithubClient is
@@ -19,6 +25,7 @@ type GithubClient struct {
 	client     *github.Client
 	owner      string
 	repository string
+	token      string
 }
 
 // NewGithubClient is
@@ -47,12 +54,13 @@ func NewGithubClient(source Source) (*GithubClient, error) {
 		client,
 		source.Owner,
 		source.Repo,
+		source.AccessToken,
 	}, nil
 }
 
 // ListPRs is
-func (g *GithubClient) ListPRs(opts *github.PullRequestListOptions) ([]*github.PullRequest, error) {
-	pulls, resp, err := g.client.PullRequests.List(context.TODO(), g.owner, g.repository, nil)
+func (gc *GithubClient) ListPRs(opts *github.PullRequestListOptions) ([]*github.PullRequest, error) {
+	pulls, resp, err := gc.client.PullRequests.List(context.TODO(), gc.owner, gc.repository, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -65,9 +73,61 @@ func (g *GithubClient) ListPRs(opts *github.PullRequestListOptions) ([]*github.P
 	return pulls, nil
 }
 
+type pullFetcher struct {
+	RepoURL  string
+	RepoDir  string
+	PRNumber int
+}
+
+// DownloadPR is
+func (gc *GithubClient) DownloadPR(sourceDir string, prNumber int) error {
+	repo, resp, err := gc.client.Repositories.Get(context.TODO(), gc.owner, gc.repository)
+	if err != nil {
+		return err
+	}
+
+	if err = resp.Body.Close(); err != nil {
+		return fmt.Errorf("closing resp body: %+v", err)
+	}
+
+	file, err := os.OpenFile(path.Join(sourceDir, "fetch.sh"), os.O_RDWR|os.O_CREATE, 0755)
+	if err != nil {
+		return fmt.Errorf("opening file: %+v", err)
+	}
+
+	tmpl := template.Must(template.New("").Parse(`#!/bin/bash
+git clone {{.RepoURL}} {{.RepoDir}}
+
+pushd {{.RepoDir}}
+  git fetch origin pull/{{.PRNumber}}/head:pr
+  git checkout pr
+popd
+
+rm -- "$0"
+`))
+
+	pf := pullFetcher{
+		RepoURL:  buildURLWithToken(repo.GetHTMLURL(), gc.token),
+		RepoDir:  path.Join(sourceDir, repo.GetName()),
+		PRNumber: prNumber,
+	}
+
+	if err = tmpl.Execute(file, pf); err != nil {
+		return fmt.Errorf("executing template: %+v", err)
+	}
+
+	cmd := exec.Command("./fetch.sh")
+	cmd.Dir = sourceDir
+	if _, err = cmd.Output(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // GetPR is
-func (g *GithubClient) GetPR(number int) (*github.PullRequest, error) {
-	pull, resp, err := g.client.PullRequests.Get(context.TODO(), g.owner, g.repository, number)
+func (gc *GithubClient) GetPR(number int) (*github.PullRequest, error) {
+	pull, resp, err := gc.client.PullRequests.Get(context.TODO(), gc.owner, gc.repository, number)
 	if err != nil {
 		return nil, err
 	}
@@ -91,4 +151,8 @@ func oauthClient(ctx context.Context, source Source) (*http.Client, error) {
 		Transport: oauthClient.Transport,
 	}
 	return githubHTTPClient, nil
+}
+
+func buildURLWithToken(url, token string) string {
+	return fmt.Sprintf("https://%s@%s", token, url[8:])
 }

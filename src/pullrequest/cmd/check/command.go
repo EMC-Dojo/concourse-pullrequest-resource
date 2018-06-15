@@ -18,17 +18,17 @@ func NewCheckCommand(g r.Github) *CheckCommand {
 
 // Run is
 func (cc *CheckCommand) Run(request r.CheckRequest) ([]r.Version, error) {
+	versions := []r.Version{}
+
 	opts := &github.PullRequestListOptions{}
 	pulls, err := cc.github.ListPRs(opts)
 	if err != nil {
-		return []r.Version{}, err
+		return versions, err
 	}
 
 	if len(pulls) == 0 {
-		return []r.Version{}, nil
+		return versions, nil
 	}
-
-	versions := []r.Version{}
 
 	for _, pull := range pulls {
 		versions = append(versions, r.Version{Ref: *pull.Head.SHA})

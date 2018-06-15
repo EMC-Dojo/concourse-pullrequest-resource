@@ -11,7 +11,7 @@ import (
 
 // Github is
 type Github interface {
-	ListPRs() ([]*github.PullRequest, error)
+	ListPRs(*github.PullRequestListOptions) ([]*github.PullRequest, error)
 }
 
 // GithubClient is
@@ -63,6 +63,21 @@ func (g *GithubClient) ListPRs(opts *github.PullRequestListOptions) ([]*github.P
 	}
 
 	return pulls, nil
+}
+
+// GetPR is
+func (g *GithubClient) GetPR(number int) (*github.PullRequest, error) {
+	pull, resp, err := g.client.PullRequests.Get(context.TODO(), g.owner, g.repository, number)
+	if err != nil {
+		return nil, err
+	}
+
+	err = resp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return pull, nil
 }
 
 func oauthClient(ctx context.Context, source Source) (*http.Client, error) {

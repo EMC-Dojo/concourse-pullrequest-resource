@@ -11,7 +11,7 @@ type Source struct {
 
 // Version is
 type Version struct {
-	REF string `json:"ref"`
+	Ref string `json:"ref"`
 }
 
 // CheckRequest is

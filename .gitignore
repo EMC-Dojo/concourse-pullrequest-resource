@@ -5,6 +5,9 @@ src/*
 !src/pullrequest
 
 # build
+/src/pullrequest/cmd/check/check
+/src/pullrequest/cmd/in/in
+/src/pullrequest/cmd/out/out
 
 # macOS
 .DS_Store

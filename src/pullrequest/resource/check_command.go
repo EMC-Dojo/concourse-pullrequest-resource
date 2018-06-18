@@ -1,24 +1,22 @@
-package main
+package resource
 
 import (
-	r "pullrequest/resource"
-
 	"github.com/google/go-github/github"
 )
 
 // CheckCommand is
 type CheckCommand struct {
-	github r.Github
+	github Github
 }
 
 // NewCheckCommand is
-func NewCheckCommand(g r.Github) *CheckCommand {
+func NewCheckCommand(g Github) *CheckCommand {
 	return &CheckCommand{g}
 }
 
 // Run is
-func (cc *CheckCommand) Run(request r.CheckRequest) ([]r.Version, error) {
-	versions := []r.Version{}
+func (cc *CheckCommand) Run(request CheckRequest) ([]Version, error) {
+	versions := []Version{}
 
 	opts := &github.PullRequestListOptions{}
 	pulls, err := cc.github.ListPRs(opts)
@@ -31,7 +29,7 @@ func (cc *CheckCommand) Run(request r.CheckRequest) ([]r.Version, error) {
 	}
 
 	for _, pull := range pulls {
-		versions = append(versions, r.Version{Ref: *pull.Head.SHA})
+		versions = append(versions, Version{Ref: *pull.Head.SHA})
 	}
 
 	return versions, nil

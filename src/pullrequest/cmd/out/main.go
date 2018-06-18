@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+
 	r "pullrequest/resource"
 )
 
@@ -22,7 +23,7 @@ func main() {
 		log.Fatalf("constructing github client: %+v", err)
 	}
 
-	command := NewOutCommand(github, os.Stderr)
+	command := r.NewOutCommand(github, os.Stderr)
 	resp, err := command.Run(sourceDir, req)
 	if err != nil {
 		log.Fatalf("running command: %+v", err)

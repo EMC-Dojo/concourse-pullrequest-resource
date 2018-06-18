@@ -1,25 +1,24 @@
-package main
+package resource
 
 import (
 	"fmt"
 	"io"
-	r "pullrequest/resource"
 )
 
 // OutCommand is
 type OutCommand struct {
-	github r.Github
+	github Github
 	writer io.Writer
 }
 
 // NewOutCommand is
-func NewOutCommand(g r.Github, w io.Writer) *OutCommand {
+func NewOutCommand(g Github, w io.Writer) *OutCommand {
 	return &OutCommand{g, w}
 }
 
 // Run is
-func (oc *OutCommand) Run(sourceDir string, req r.OutRequest) (r.OutResponse, error) {
-	resp := r.OutResponse{}
+func (oc *OutCommand) Run(sourceDir string, req OutRequest) (OutResponse, error) {
+	resp := OutResponse{}
 	params := req.OutParams
 
 	err := oc.github.UpdatePR(sourceDir, params.Status)

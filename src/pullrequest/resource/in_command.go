@@ -1,25 +1,24 @@
-package main
+package resource
 
 import (
 	"io"
 	"os"
-	r "pullrequest/resource"
 )
 
 // InCommand is
 type InCommand struct {
-	github r.Github
+	github Github
 	writer io.Writer
 }
 
 // NewInCommand is
-func NewInCommand(g r.Github, w io.Writer) *InCommand {
+func NewInCommand(g Github, w io.Writer) *InCommand {
 	return &InCommand{g, w}
 }
 
 // Run is
-func (ic *InCommand) Run(destDir string, req r.InRequest) (r.InResponse, error) {
-	resp := r.InResponse{}
+func (ic *InCommand) Run(destDir string, req InRequest) (InResponse, error) {
+	resp := InResponse{}
 
 	err := os.MkdirAll(destDir, 0755)
 	if err != nil {
@@ -38,8 +37,8 @@ func (ic *InCommand) Run(destDir string, req r.InRequest) (r.InResponse, error) 
 				return resp, err
 			}
 
-			resp = r.InResponse{
-				Version: r.Version{Ref: req.Version.Ref},
+			resp = InResponse{
+				Version: Version{Ref: req.Version.Ref},
 			}
 		}
 	}

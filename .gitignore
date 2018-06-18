@@ -5,6 +5,7 @@ src/*
 !src/pullrequest
 
 # build
+main
 /src/pullrequest/cmd/check/check
 /src/pullrequest/cmd/in/in
 /src/pullrequest/cmd/out/out

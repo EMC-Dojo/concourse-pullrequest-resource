@@ -2,7 +2,6 @@ package resource
 
 // Source is
 type Source struct {
-	URI         string `json:"uri"`
 	Insecure    bool   `json:"insecure"`
 	AccessToken string `json:"access_token"`
 	Repo        string `json:"repo"`

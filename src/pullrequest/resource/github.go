@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -13,12 +14,13 @@ import (
 	"strings"
 
 	"github.com/google/go-github/github"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 )
 
 // Github is
 type Github interface {
-	ListPRs(*github.PullRequestListOptions) ([]*github.PullRequest, error)
+	ListPRs() ([]*github.PullRequest, error)
 	DownloadPR(string, int) error
 	UpdatePR(string, string) error
 }
@@ -43,11 +45,13 @@ func NewGithubClient(source Source) (*GithubClient, error) {
 		ctx = context.WithValue(ctx, oauth2.HTTPClient, httpClient)
 	}
 
+	log.Infof("AccessToken: %s", source.AccessToken)
+
 	if source.AccessToken != "" {
 		var err error
 		httpClient, err = oauthClient(ctx, source)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("constructing oauth2 client: %+v", err)
 		}
 	}
 
@@ -62,9 +66,11 @@ func NewGithubClient(source Source) (*GithubClient, error) {
 }
 
 // ListPRs is
-func (gc *GithubClient) ListPRs(opts *github.PullRequestListOptions) ([]*github.PullRequest, error) {
-	pulls, resp, err := gc.client.PullRequests.List(context.TODO(), gc.owner, gc.repo, opts)
+func (gc *GithubClient) ListPRs() ([]*github.PullRequest, error) {
+	pulls, resp, err := gc.client.PullRequests.List(context.TODO(), gc.owner, gc.repo, nil)
 	if err != nil {
+		bodyBytes, _ := ioutil.ReadAll(resp.Body)
+		log.Infof("resp: %+v", string(bodyBytes))
 		return nil, err
 	}
 
@@ -100,12 +106,10 @@ func (gc *GithubClient) DownloadPR(sourceDir string, prNumber int) error {
 
 	tmpl := template.Must(template.New("").Parse(`#!/bin/bash
 git clone {{.RepoURL}} {{.RepoDir}}
-
 pushd {{.RepoDir}}
   git fetch origin pull/{{.PRNumber}}/head:pr
   git checkout pr
 popd
-
 rm -- "$0"
 `))
 
@@ -161,7 +165,6 @@ func (gc *GithubClient) UpdatePR(sourceDir, status string) error {
 	}
 
 	cmd := exec.Command("git", "rev-parse", "HEAD")
-	// cmd := exec.Command("pwd")
 	cmd.Dir = path.Join(sourceDir, gc.repo)
 	output, err := cmd.Output()
 	if err != nil {

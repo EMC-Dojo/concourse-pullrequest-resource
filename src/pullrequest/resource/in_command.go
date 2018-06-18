@@ -25,7 +25,7 @@ func (ic *InCommand) Run(destDir string, req InRequest) (InResponse, error) {
 		return resp, err
 	}
 
-	pulls, err := ic.github.ListPRs(nil)
+	pulls, err := ic.github.ListPRs()
 	if err != nil {
 		return resp, err
 	}

@@ -10,5 +10,8 @@ main
 /src/pullrequest/cmd/in/in
 /src/pullrequest/cmd/out/out
 
+# env
+config.yml
+
 # macOS
 .DS_Store

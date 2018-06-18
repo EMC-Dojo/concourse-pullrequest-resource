@@ -1,9 +1,5 @@
 package resource
 
-import (
-	"github.com/google/go-github/github"
-)
-
 // CheckCommand is
 type CheckCommand struct {
 	github Github
@@ -18,8 +14,7 @@ func NewCheckCommand(g Github) *CheckCommand {
 func (cc *CheckCommand) Run(request CheckRequest) ([]Version, error) {
 	versions := []Version{}
 
-	opts := &github.PullRequestListOptions{}
-	pulls, err := cc.github.ListPRs(opts)
+	pulls, err := cc.github.ListPRs()
 	if err != nil {
 		return versions, err
 	}

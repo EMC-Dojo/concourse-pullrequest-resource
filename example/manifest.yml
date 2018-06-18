@@ -1,0 +1,23 @@
+resource_types:
+- name: pull-request
+  type: docker-image
+  source:
+    repository: kaleo211/pr
+
+resources:
+- name: ithink-pr
+  type: pull-request
+  source:
+    owner: kaleo211
+    repo: ithink
+    access_token: {{ithink-access_token}}
+    insecure: false
+
+jobs:
+- name: set-pr-pending
+  plan:
+  - get: ithink-pr
+    trigger: true
+  - put: ithink-pr
+    params:
+      status: pending

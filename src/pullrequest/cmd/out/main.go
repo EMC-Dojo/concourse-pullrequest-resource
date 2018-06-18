@@ -2,11 +2,16 @@ package main
 
 import (
 	"encoding/json"
-	"log"
 	"os"
+
+	log "github.com/sirupsen/logrus"
 
 	r "pullrequest/resource"
 )
+
+func init() {
+	log.SetOutput(os.Stderr)
+}
 
 func main() {
 	if len(os.Args) < 2 {

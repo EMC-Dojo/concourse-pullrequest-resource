@@ -4,28 +4,26 @@ import (
 	"encoding/json"
 	"log"
 	"os"
-
 	r "pullrequest/resource"
 )
 
 func main() {
 	if len(os.Args) < 2 {
-		log.Printf("usage: %s <source directory>\n", os.Args[0])
-		os.Exit(1)
+		log.Fatalf("usage: %s <sources directory>\n", os.Args[0])
 	}
 
-	req := r.NewInRequest()
+	req := r.NewOutRequest()
 	inputRequest(&req)
 
-	destDir := os.Args[1]
+	sourceDir := os.Args[1]
 
 	github, err := r.NewGithubClient(req.Source)
 	if err != nil {
 		log.Fatalf("constructing github client: %+v", err)
 	}
 
-	command := NewInCommand(github, os.Stderr)
-	resp, err := command.Run(destDir, req)
+	command := NewOutCommand(github, os.Stderr)
+	resp, err := command.Run(sourceDir, req)
 	if err != nil {
 		log.Fatalf("running command: %+v", err)
 	}
@@ -33,14 +31,14 @@ func main() {
 	outputResponse(resp)
 }
 
-func inputRequest(req *r.InRequest) {
+func inputRequest(req *r.OutRequest) {
 	err := json.NewDecoder(os.Stdin).Decode(req)
 	if err != nil {
 		log.Fatalf("reading request from stdin: %+v", err)
 	}
 }
 
-func outputResponse(resp r.InResponse) {
+func outputResponse(resp r.OutResponse) {
 	err := json.NewEncoder(os.Stdout).Encode(resp)
 	if err != nil {
 		log.Fatalf("writing response to stdout: %+v", err)

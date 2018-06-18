@@ -59,8 +59,7 @@ func NewInRequest() InRequest {
 
 // OutParams is
 type OutParams struct {
-	NamePath string `json:"name"`
-	BodyPath string `json:"body"`
+	Status string `json:"status"`
 }
 
 // OutRequest is

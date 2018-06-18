@@ -3,12 +3,14 @@ package resource
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 
 	"github.com/google/go-github/github"
 	"golang.org/x/oauth2"
@@ -18,14 +20,15 @@ import (
 type Github interface {
 	ListPRs(*github.PullRequestListOptions) ([]*github.PullRequest, error)
 	DownloadPR(string, int) error
+	UpdatePR(string, string) error
 }
 
 // GithubClient is
 type GithubClient struct {
-	client     *github.Client
-	owner      string
-	repository string
-	token      string
+	client *github.Client
+	owner  string
+	repo   string
+	token  string
 }
 
 // NewGithubClient is
@@ -60,7 +63,7 @@ func NewGithubClient(source Source) (*GithubClient, error) {
 
 // ListPRs is
 func (gc *GithubClient) ListPRs(opts *github.PullRequestListOptions) ([]*github.PullRequest, error) {
-	pulls, resp, err := gc.client.PullRequests.List(context.TODO(), gc.owner, gc.repository, opts)
+	pulls, resp, err := gc.client.PullRequests.List(context.TODO(), gc.owner, gc.repo, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +84,7 @@ type pullFetcher struct {
 
 // DownloadPR is
 func (gc *GithubClient) DownloadPR(sourceDir string, prNumber int) error {
-	repo, resp, err := gc.client.Repositories.Get(context.TODO(), gc.owner, gc.repository)
+	repo, resp, err := gc.client.Repositories.Get(context.TODO(), gc.owner, gc.repo)
 	if err != nil {
 		return err
 	}
@@ -127,7 +130,7 @@ rm -- "$0"
 
 // GetPR is
 func (gc *GithubClient) GetPR(number int) (*github.PullRequest, error) {
-	pull, resp, err := gc.client.PullRequests.Get(context.TODO(), gc.owner, gc.repository, number)
+	pull, resp, err := gc.client.PullRequests.Get(context.TODO(), gc.owner, gc.repo, number)
 	if err != nil {
 		return nil, err
 	}
@@ -138,6 +141,50 @@ func (gc *GithubClient) GetPR(number int) (*github.PullRequest, error) {
 	}
 
 	return pull, nil
+}
+
+// UpdatePR is
+func (gc *GithubClient) UpdatePR(sourceDir, status string) error {
+	switch status {
+	case
+		"error",
+		"failure",
+		"pending",
+		"success":
+		break
+	default:
+		return fmt.Errorf("%s is not a valid status", status)
+	}
+
+	repoStatus := &github.RepoStatus{
+		State: &status,
+	}
+
+	cmd := exec.Command("git", "rev-parse", "HEAD")
+	// cmd := exec.Command("pwd")
+	cmd.Dir = path.Join(sourceDir, gc.repo)
+	output, err := cmd.Output()
+	if err != nil {
+		return err
+	}
+	ref := strings.TrimRight(string(output), "\n\r")
+	fmt.Println("ref", ref, "end")
+
+	returnedRepoStatus, resp, err := gc.client.Repositories.CreateStatus(context.TODO(), gc.owner, gc.repo, string(ref), repoStatus)
+	if err != nil {
+		return err
+	}
+
+	err = resp.Body.Close()
+	if err != nil {
+		return err
+	}
+
+	if returnedRepoStatus.GetState() != status {
+		return errors.New("updating commit status")
+	}
+
+	return nil
 }
 
 func oauthClient(ctx context.Context, source Source) (*http.Client, error) {

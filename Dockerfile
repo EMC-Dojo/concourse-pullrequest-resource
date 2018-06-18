@@ -5,6 +5,8 @@ COPY . /concourse/pullrequest-resource
 ENV GOPATH /concourse/pullrequest-resource
 ENV PATH ${GOPATH}/bin:${PATH}
 
-# RUN go build -o /assets/out /concourse/pullrequest-resource/src/pullrequest/cmd/out
-# RUN go build -o /assets/in /concourse/pullrequest-resource/src/pullrequest/cmd/in
-# RUN go build -o /assets/check /concourse/pullrequest-resource/cmd/src/pullrequest/check
+WORKDIR /concourse/pullrequest-resource
+
+RUN go build -o /assets/out src/pullrequest/cmd/out/main.go
+RUN go build -o /assets/in src/pullrequest/cmd/in/main.go
+RUN go build -o /assets/check src/pullrequest/cmd/check/main.go

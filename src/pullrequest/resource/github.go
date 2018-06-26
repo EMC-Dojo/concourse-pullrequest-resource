@@ -18,6 +18,14 @@ import (
 	"golang.org/x/oauth2"
 )
 
+var downloadPRScriptPath = "/var/download_pr.sh"
+
+var downloadPRScriptBytes = `#!/bin/sh
+git clone {{.RepoURL}} {{.RepoLocalPath}}
+git fetch origin pull/{{.PRNumber}}/head:pr
+git checkout pr
+`
+
 // Github is
 type Github interface {
 	ListPRs() ([]*github.PullRequest, error)
@@ -31,12 +39,14 @@ type GithubClient struct {
 	owner  string
 	repo   string
 	token  string
+	ctx    context.Context
 }
 
 // NewGithubClient is
 func NewGithubClient(source Source) (*GithubClient, error) {
 	var httpClient = &http.Client{}
-	var ctx = context.TODO()
+	var ctx = context.Background()
+	var err error
 
 	if source.Insecure {
 		httpClient.Transport = &http.Transport{
@@ -45,23 +55,28 @@ func NewGithubClient(source Source) (*GithubClient, error) {
 		ctx = context.WithValue(ctx, oauth2.HTTPClient, httpClient)
 	}
 
-	log.Infof("AccessToken: %s", source.AccessToken)
-
 	if source.AccessToken != "" {
-		var err error
 		httpClient, err = oauthClient(ctx, source)
 		if err != nil {
 			return nil, fmt.Errorf("constructing oauth2 client: %+v", err)
 		}
 	}
 
-	client := github.NewClient(httpClient)
+	var client *github.Client
+	if source.APIURL == "" {
+		client = github.NewClient(httpClient)
+	} else {
+		client, err = github.NewEnterpriseClient(source.APIURL, source.APIURL+"/upload", httpClient)
+		if err != nil {
+			return nil, fmt.Errorf("construting enterprise oauth2 client: %+v", err)
+		}
+	}
 
 	return &GithubClient{
-		client,
-		source.Owner,
-		source.Repo,
-		source.AccessToken,
+		client: client,
+		owner:  source.Owner,
+		repo:   source.Repo,
+		token:  source.AccessToken,
 	}, nil
 }
 
@@ -69,9 +84,7 @@ func NewGithubClient(source Source) (*GithubClient, error) {
 func (gc *GithubClient) ListPRs() ([]*github.PullRequest, error) {
 	pulls, resp, err := gc.client.PullRequests.List(context.TODO(), gc.owner, gc.repo, nil)
 	if err != nil {
-		bodyBytes, _ := ioutil.ReadAll(resp.Body)
-		log.Infof("resp: %+v", string(bodyBytes))
-		return nil, err
+		return nil, fmt.Errorf("listing pr: %+v", err)
 	}
 
 	err = resp.Body.Close()
@@ -83,50 +96,56 @@ func (gc *GithubClient) ListPRs() ([]*github.PullRequest, error) {
 }
 
 type pullFetcher struct {
-	RepoURL  string
-	RepoDir  string
-	PRNumber int
+	RepoURL       string
+	RepoLocalPath string
+	PRNumber      int
 }
 
 // DownloadPR is
-func (gc *GithubClient) DownloadPR(sourceDir string, prNumber int) error {
+func (gc *GithubClient) DownloadPR(destDir string, prNumber int) error {
 	repo, resp, err := gc.client.Repositories.Get(context.TODO(), gc.owner, gc.repo)
 	if err != nil {
-		return err
+		return fmt.Errorf("getting repos: %+v", err)
 	}
 
 	if err = resp.Body.Close(); err != nil {
 		return fmt.Errorf("closing resp body: %+v", err)
 	}
 
-	file, err := os.OpenFile(path.Join(sourceDir, "fetch.sh"), os.O_RDWR|os.O_CREATE, 0755)
+	file, err := os.OpenFile(downloadPRScriptPath, os.O_RDWR|os.O_CREATE, 0777)
 	if err != nil {
-		return fmt.Errorf("opening file: %+v", err)
+		return fmt.Errorf("opening download script: %+v", err)
 	}
 
-	tmpl := template.Must(template.New("").Parse(`#!/bin/bash
-git clone {{.RepoURL}} {{.RepoDir}}
-pushd {{.RepoDir}}
-  git fetch origin pull/{{.PRNumber}}/head:pr
-  git checkout pr
-popd
-rm -- "$0"
-`))
-
+	tmpl := template.Must(template.New("").Parse(downloadPRScriptBytes))
 	pf := pullFetcher{
-		RepoURL:  buildURLWithToken(repo.GetHTMLURL(), gc.token),
-		RepoDir:  path.Join(sourceDir, repo.GetName()),
-		PRNumber: prNumber,
+		RepoURL:       buildURLWithToken(repo.GetHTMLURL(), gc.token),
+		RepoLocalPath: destDir,
+		PRNumber:      prNumber,
 	}
 
 	if err = tmpl.Execute(file, pf); err != nil {
 		return fmt.Errorf("executing template: %+v", err)
 	}
 
-	cmd := exec.Command("./fetch.sh")
-	cmd.Dir = sourceDir
-	if _, err = cmd.Output(); err != nil {
-		return err
+	cmd := exec.Command("/bin/sh", downloadPRScriptPath)
+	if output, err := cmd.Output(); err != nil {
+		return fmt.Errorf("executing download script: %s, %+v", string(output), err)
+	}
+
+	log.Infof("listing comments for PR: %d", prNumber)
+	pull, resp, err := gc.client.PullRequests.Get(context.TODO(), gc.owner, gc.repo, prNumber)
+	if err != nil {
+		return fmt.Errorf("listing comments: %+v", err)
+	}
+
+	if err = resp.Body.Close(); err != nil {
+		return fmt.Errorf("closing resp body: %+v", err)
+	}
+
+	err = ioutil.WriteFile(path.Join(destDir, "pr_comment"), []byte(*pull.Body), 0644)
+	if err != nil {
+		return fmt.Errorf("writing to pr_comment: %+v", err)
 	}
 
 	return nil
@@ -159,34 +178,33 @@ func (gc *GithubClient) UpdatePR(sourceDir, status string) error {
 	default:
 		return fmt.Errorf("%s is not a valid status", status)
 	}
-
 	repoStatus := &github.RepoStatus{
 		State: &status,
 	}
 
 	cmd := exec.Command("git", "rev-parse", "HEAD")
 	cmd.Dir = path.Join(sourceDir, gc.repo)
+	log.Infof("repo dir: %+v", path.Join(sourceDir, gc.repo))
 	output, err := cmd.Output()
+	log.Infof("git rev-parse output: %+v", string(output))
 	if err != nil {
-		return err
+		return fmt.Errorf("getting pr commit hash: %+v", err)
 	}
 	ref := strings.TrimRight(string(output), "\n\r")
-	fmt.Println("ref", ref, "end")
 
 	returnedRepoStatus, resp, err := gc.client.Repositories.CreateStatus(context.TODO(), gc.owner, gc.repo, string(ref), repoStatus)
 	if err != nil {
-		return err
+		return fmt.Errorf("creating status: %+v", err)
 	}
 
 	err = resp.Body.Close()
 	if err != nil {
-		return err
+		return fmt.Errorf("closing resp body: %+v", err)
 	}
 
 	if returnedRepoStatus.GetState() != status {
 		return errors.New("updating commit status")
 	}
-
 	return nil
 }
 

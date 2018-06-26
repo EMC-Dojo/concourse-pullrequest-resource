@@ -1,5 +1,8 @@
 FROM golang:alpine
 
+RUN apk update && \
+    apk add git
+
 COPY . /concourse/pullrequest-resource
 
 ENV GOPATH /concourse/pullrequest-resource

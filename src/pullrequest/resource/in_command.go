@@ -32,7 +32,7 @@ func (ic *InCommand) Run(destDir string, req InRequest) (InResponse, error) {
 
 	for _, pull := range pulls {
 		if *pull.GetHead().SHA == req.Version.Ref {
-			err = ic.github.DownloadPR(destDir, 1)
+			err = ic.github.DownloadPR(destDir, pull.GetNumber())
 			if err != nil {
 				return resp, err
 			}

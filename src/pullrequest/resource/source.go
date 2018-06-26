@@ -6,6 +6,7 @@ type Source struct {
 	AccessToken string `json:"access_token"`
 	Repo        string `json:"repo"`
 	Owner       string `json:"owner"`
+	APIURL      string `json:"api_url"`
 }
 
 // Version is

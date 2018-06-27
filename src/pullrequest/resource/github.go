@@ -21,7 +21,8 @@ import (
 var downloadPRScriptPath = "/var/download_pr.sh"
 
 var downloadPRScriptBytes = `#!/bin/sh
-git clone {{.RepoURL}} {{.RepoLocalPath}}
+git -c http.sslVerify=false clone {{.RepoURL}} {{.DestDir}}/
+cd {{.DestDir}}
 git fetch origin pull/{{.PRNumber}}/head:pr
 git checkout pr
 `
@@ -96,9 +97,9 @@ func (gc *GithubClient) ListPRs() ([]*github.PullRequest, error) {
 }
 
 type pullFetcher struct {
-	RepoURL       string
-	RepoLocalPath string
-	PRNumber      int
+	RepoURL  string
+	DestDir  string
+	PRNumber int
 }
 
 // DownloadPR is
@@ -119,14 +120,17 @@ func (gc *GithubClient) DownloadPR(destDir string, prNumber int) error {
 
 	tmpl := template.Must(template.New("").Parse(downloadPRScriptBytes))
 	pf := pullFetcher{
-		RepoURL:       buildURLWithToken(repo.GetHTMLURL(), gc.token),
-		RepoLocalPath: destDir,
-		PRNumber:      prNumber,
+		RepoURL:  buildURLWithToken(repo.GetHTMLURL(), gc.token),
+		DestDir:  destDir,
+		PRNumber: prNumber,
 	}
 
 	if err = tmpl.Execute(file, pf); err != nil {
 		return fmt.Errorf("executing template: %+v", err)
 	}
+
+	log.Infof("download script path: %s", downloadPRScriptPath)
+	log.Infof("repo path: %s", destDir)
 
 	cmd := exec.Command("/bin/sh", downloadPRScriptPath)
 	if output, err := cmd.Output(); err != nil {
@@ -141,6 +145,16 @@ func (gc *GithubClient) DownloadPR(destDir string, prNumber int) error {
 
 	if err = resp.Body.Close(); err != nil {
 		return fmt.Errorf("closing resp body: %+v", err)
+	}
+
+	var labels string
+	for _, label := range pull.Labels {
+		labels += " " + label.GetName()
+	}
+
+	err = ioutil.WriteFile(path.Join(destDir, "pr_labels"), []byte(labels), 0644)
+	if err != nil {
+		return fmt.Errorf("writing to pr_labels: %+v", err)
 	}
 
 	err = ioutil.WriteFile(path.Join(destDir, "pr_comment"), []byte(*pull.Body), 0644)

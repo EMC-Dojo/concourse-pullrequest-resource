@@ -24,7 +24,7 @@ func (cc *CheckCommand) Run(request CheckRequest) ([]Version, error) {
 	}
 
 	for _, pull := range pulls {
-		versions = append(versions, Version{Ref: *pull.Head.SHA})
+		versions = append(versions, Version{Ref: pull.SHA})
 	}
 
 	return versions, nil

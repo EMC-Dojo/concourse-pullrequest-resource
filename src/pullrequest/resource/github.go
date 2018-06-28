@@ -28,9 +28,15 @@ git -c http.sslVerify=false fetch origin pull/{{.PRNumber}}/head:pr
 git checkout pr
 `
 
+// Pull is
+type Pull struct {
+	Number int
+	SHA    string
+}
+
 // Github is
 type Github interface {
-	ListPRs() ([]*github.PullRequest, error)
+	ListPRs() ([]*Pull, error)
 	DownloadPR(string, int) error
 	UpdatePR(string, string, string) (string, error)
 }
@@ -83,7 +89,7 @@ func NewGithubClient(source Source) (*GithubClient, error) {
 }
 
 // ListPRs is
-func (gc *GithubClient) ListPRs() ([]*github.PullRequest, error) {
+func (gc *GithubClient) ListPRs() ([]*Pull, error) {
 	options := &github.PullRequestListOptions{
 		Sort:      "updated",
 		Direction: "asc",
@@ -99,7 +105,15 @@ func (gc *GithubClient) ListPRs() ([]*github.PullRequest, error) {
 		return nil, err
 	}
 
-	return pulls, nil
+	return convert(pulls), nil
+}
+
+func convert(prs []*github.PullRequest) []*Pull {
+	pulls := make([]*Pull, len(prs))
+	for i, pr := range prs {
+		pulls[i] = &Pull{Number: pr.GetNumber(), SHA: pr.GetHead().GetSHA()}
+	}
+	return pulls
 }
 
 type pullFetcher struct {

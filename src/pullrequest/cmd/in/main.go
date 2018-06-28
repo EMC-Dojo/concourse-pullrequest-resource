@@ -1,12 +1,12 @@
 package main
 
 import (
-	"encoding/json"
 	"os"
 
 	log "github.com/sirupsen/logrus"
 
 	r "pullrequest/resource"
+	"pullrequest/util"
 )
 
 func init() {
@@ -20,7 +20,7 @@ func main() {
 	}
 
 	req := r.NewInRequest()
-	inputRequest(&req)
+	util.InputRequest(&req)
 
 	destDir := os.Args[1]
 
@@ -35,19 +35,5 @@ func main() {
 		log.Fatalf("running command: %+v", err)
 	}
 
-	outputResponse(resp)
-}
-
-func inputRequest(req *r.InRequest) {
-	err := json.NewDecoder(os.Stdin).Decode(req)
-	if err != nil {
-		log.Fatalf("reading request from stdin: %+v", err)
-	}
-}
-
-func outputResponse(resp r.InResponse) {
-	err := json.NewEncoder(os.Stdout).Encode(resp)
-	if err != nil {
-		log.Fatalf("writing response to stdout: %+v", err)
-	}
+	util.OutputResponse(resp)
 }

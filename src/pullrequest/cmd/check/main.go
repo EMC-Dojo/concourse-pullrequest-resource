@@ -1,12 +1,12 @@
 package main
 
 import (
-	"encoding/json"
 	"os"
 
 	log "github.com/sirupsen/logrus"
 
 	r "pullrequest/resource"
+	"pullrequest/util"
 )
 
 func init() {
@@ -15,7 +15,7 @@ func init() {
 
 func main() {
 	req := r.NewCheckRequest()
-	inputRequest(&req)
+	util.InputRequest(&req)
 
 	github, err := r.NewGithubClient(req.Source)
 	if err != nil {
@@ -28,19 +28,10 @@ func main() {
 		log.Fatalf("running command: %+v", err)
 	}
 
-	outputResponse(resp)
-}
-
-func inputRequest(request *r.CheckRequest) {
-	err := json.NewDecoder(os.Stdin).Decode(request)
-	if err != nil {
-		log.Fatalf("reading request from stdin: %+v", err)
+	respInterface := make([]interface{}, len(resp))
+	for i, version := range resp {
+		respInterface[i] = version
 	}
-}
 
-func outputResponse(response []r.Version) {
-	err := json.NewEncoder(os.Stdout).Encode(response)
-	if err != nil {
-		log.Fatalf("writing response to stdout: %+v", err)
-	}
+	util.OutputArrayResponse(respInterface)
 }

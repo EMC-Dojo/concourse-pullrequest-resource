@@ -18,13 +18,12 @@ func NewOutCommand(g Github, w io.Writer) *OutCommand {
 
 // Run is
 func (oc *OutCommand) Run(sourceDir string, req OutRequest) (OutResponse, error) {
-	resp := OutResponse{}
 	params := req.OutParams
 
-	err := oc.github.UpdatePR(sourceDir, params.Status)
+	ref, err := oc.github.UpdatePR(sourceDir, params.Status, params.Path)
 	if err != nil {
-		return resp, fmt.Errorf("updating pr: %+v", err)
+		return OutResponse{}, fmt.Errorf("updating pr: %+v", err)
 	}
 
-	return resp, nil
+	return OutResponse{Version: Version{Ref: ref}}, nil
 }

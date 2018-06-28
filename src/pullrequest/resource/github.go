@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/google/go-github/github"
@@ -23,7 +24,7 @@ var downloadPRScriptPath = "/var/download_pr.sh"
 var downloadPRScriptBytes = `#!/bin/sh
 git -c http.sslVerify=false clone {{.RepoURL}} {{.DestDir}}/
 cd {{.DestDir}}
-git fetch origin pull/{{.PRNumber}}/head:pr
+git -c http.sslVerify=false fetch origin pull/{{.PRNumber}}/head:pr
 git checkout pr
 `
 
@@ -31,7 +32,7 @@ git checkout pr
 type Github interface {
 	ListPRs() ([]*github.PullRequest, error)
 	DownloadPR(string, int) error
-	UpdatePR(string, string) error
+	UpdatePR(string, string, string) (string, error)
 }
 
 // GithubClient is
@@ -83,7 +84,12 @@ func NewGithubClient(source Source) (*GithubClient, error) {
 
 // ListPRs is
 func (gc *GithubClient) ListPRs() ([]*github.PullRequest, error) {
-	pulls, resp, err := gc.client.PullRequests.List(context.TODO(), gc.owner, gc.repo, nil)
+	options := &github.PullRequestListOptions{
+		Sort:      "updated",
+		Direction: "asc",
+	}
+
+	pulls, resp, err := gc.client.PullRequests.List(context.TODO(), gc.owner, gc.repo, options)
 	if err != nil {
 		return nil, fmt.Errorf("listing pr: %+v", err)
 	}
@@ -152,9 +158,16 @@ func (gc *GithubClient) DownloadPR(destDir string, prNumber int) error {
 		labels += " " + label.GetName()
 	}
 
+	log.Infof("fetched %d labels: %s", len(pull.Labels), labels)
+
 	err = ioutil.WriteFile(path.Join(destDir, "pr_labels"), []byte(labels), 0644)
 	if err != nil {
 		return fmt.Errorf("writing to pr_labels: %+v", err)
+	}
+
+	err = ioutil.WriteFile(path.Join(destDir, "pr_number"), []byte(strconv.Itoa(prNumber)), 0644)
+	if err != nil {
+		return fmt.Errorf("writing to pr_number: %+v", err)
 	}
 
 	err = ioutil.WriteFile(path.Join(destDir, "pr_comment"), []byte(*pull.Body), 0644)
@@ -181,7 +194,7 @@ func (gc *GithubClient) GetPR(number int) (*github.PullRequest, error) {
 }
 
 // UpdatePR is
-func (gc *GithubClient) UpdatePR(sourceDir, status string) error {
+func (gc *GithubClient) UpdatePR(sourceDir, status, repoPath string) (string, error) {
 	switch status {
 	case
 		"error",
@@ -190,36 +203,38 @@ func (gc *GithubClient) UpdatePR(sourceDir, status string) error {
 		"success":
 		break
 	default:
-		return fmt.Errorf("%s is not a valid status", status)
+		return "", fmt.Errorf("%s is not a valid status", status)
 	}
 	repoStatus := &github.RepoStatus{
 		State: &status,
 	}
 
+	repoDir := path.Join(sourceDir, repoPath)
+	log.Infof("repo dir: %s", repoDir)
+
 	cmd := exec.Command("git", "rev-parse", "HEAD")
-	cmd.Dir = path.Join(sourceDir, gc.repo)
-	log.Infof("repo dir: %+v", path.Join(sourceDir, gc.repo))
+	cmd.Dir = path.Join(repoDir)
 	output, err := cmd.Output()
 	log.Infof("git rev-parse output: %+v", string(output))
 	if err != nil {
-		return fmt.Errorf("getting pr commit hash: %+v", err)
+		return "", fmt.Errorf("getting pr commit hash: %+v", err)
 	}
 	ref := strings.TrimRight(string(output), "\n\r")
 
 	returnedRepoStatus, resp, err := gc.client.Repositories.CreateStatus(context.TODO(), gc.owner, gc.repo, string(ref), repoStatus)
 	if err != nil {
-		return fmt.Errorf("creating status: %+v", err)
+		return "", fmt.Errorf("creating status: %+v", err)
 	}
 
 	err = resp.Body.Close()
 	if err != nil {
-		return fmt.Errorf("closing resp body: %+v", err)
+		return "", fmt.Errorf("closing resp body: %+v", err)
 	}
 
 	if returnedRepoStatus.GetState() != status {
-		return errors.New("updating commit status")
+		return "", errors.New("updating commit status")
 	}
-	return nil
+	return ref, nil
 }
 
 func oauthClient(ctx context.Context, source Source) (*http.Client, error) {

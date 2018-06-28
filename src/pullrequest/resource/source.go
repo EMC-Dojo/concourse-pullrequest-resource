@@ -60,6 +60,7 @@ func NewInRequest() InRequest {
 // OutParams is
 type OutParams struct {
 	Status string `json:"status"`
+	Path   string `json:"path"`
 }
 
 // OutRequest is
@@ -70,7 +71,7 @@ type OutRequest struct {
 
 // OutResponse is
 type OutResponse struct {
-	Version  `json:"version"`
+	Version  Version    `json:"version"`
 	Metadata []Metadata `json:"metadata"`
 }
 

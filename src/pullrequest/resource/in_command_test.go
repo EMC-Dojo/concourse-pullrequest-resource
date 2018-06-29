@@ -1,6 +1,7 @@
 package resource_test
 
 import (
+	"errors"
 	"os"
 	"path"
 
@@ -22,10 +23,10 @@ var _ = Describe("CheckCommand", func() {
 		os.Remove(fakeDestDir)
 	})
 
-	Context("when request is valid", func() {
+	Context("when version is valid", func() {
 		It("should return downloaded version", func() {
 			fakeGithub := &fake.FGithub{
-				Pulls: []*r.Pull{
+				ListPRResult: []*r.Pull{
 					&r.Pull{Number: 1, SHA: "fake-sha1"},
 					&r.Pull{Number: 2, SHA: "fake-sha2"},
 				},
@@ -42,9 +43,66 @@ var _ = Describe("CheckCommand", func() {
 		})
 	})
 
+	Context("when creating a folder fails", func() {
+		It("should return error", func() {
+			fakeGithub := &fake.FGithub{
+				ListPRResult: []*r.Pull{
+					&r.Pull{Number: 1, SHA: "fake-sha1"},
+					&r.Pull{Number: 2, SHA: "fake-sha2"},
+				},
+			}
+			inCommand := r.NewInCommand(fakeGithub)
+			inRequest := r.InRequest{
+				Source:  r.Source{},
+				Version: r.Version{Ref: "fake-sha1"},
+			}
+
+			_, err := inCommand.Run("/dir/not/exist", inRequest)
+			Expect(err).To(HaveOccurred())
+		})
+	})
+
+	Context("when download failed", func() {
+		It("should return error", func() {
+			fakeGithub := &fake.FGithub{
+				ListPRResult: []*r.Pull{
+					&r.Pull{Number: 1, SHA: "fake-sha1"},
+					&r.Pull{Number: 2, SHA: "fake-sha2"},
+				},
+				DownloadPRError: errors.New("fake-error"),
+			}
+			inCommand := r.NewInCommand(fakeGithub)
+			inRequest := r.InRequest{
+				Source:  r.Source{},
+				Version: r.Version{Ref: "fake-sha1"},
+			}
+
+			_, err := inCommand.Run(fakeDestDir, inRequest)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("fake-error"))
+		})
+	})
+
+	Context("when List PRs failed", func() {
+		It("should return error", func() {
+			fakeGithub := &fake.FGithub{
+				ListPRError: errors.New("fake-list-error"),
+			}
+			inCommand := r.NewInCommand(fakeGithub)
+			inRequest := r.InRequest{
+				Source:  r.Source{},
+				Version: r.Version{Ref: "fake-sha1"},
+			}
+
+			_, err := inCommand.Run(fakeDestDir, inRequest)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("fake-list-error"))
+		})
+	})
+
 	Context("when there is not pull request", func() {
 		It("should return error", func() {
-			fakeGithub := &fake.FGithub{Pulls: []*r.Pull{}}
+			fakeGithub := &fake.FGithub{ListPRResult: []*r.Pull{}}
 			inCommand := r.NewInCommand(fakeGithub)
 			inRequest := r.InRequest{
 				Source:  r.Source{},
@@ -57,10 +115,10 @@ var _ = Describe("CheckCommand", func() {
 		})
 	})
 
-	Context("when request is not valid", func() {
+	Context("when version is not valid anymore", func() {
 		It("should return error", func() {
 			fakeGithub := &fake.FGithub{
-				Pulls: []*r.Pull{
+				ListPRResult: []*r.Pull{
 					&r.Pull{Number: 1, SHA: "fake-sha1"},
 					&r.Pull{Number: 2, SHA: "fake-sha2"},
 				},

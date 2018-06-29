@@ -13,7 +13,7 @@ var _ = Describe("CheckCommand", func() {
 		Context("when there is a pull", func() {
 			It("should return latest versions", func() {
 				fakeGithub := &fake.FGithub{
-					Pulls: []*r.Pull{
+					ListPRResult: []*r.Pull{
 						&r.Pull{Number: 1, SHA: "fake-sha1"},
 					},
 				}
@@ -32,7 +32,7 @@ var _ = Describe("CheckCommand", func() {
 
 		Context("when there is no pull", func() {
 			It("should return empty array", func() {
-				fakeGithub := &fake.FGithub{Pulls: []*r.Pull{}}
+				fakeGithub := &fake.FGithub{ListPRResult: []*r.Pull{}}
 				checkCommand := r.NewCheckCommand(fakeGithub)
 				checkRequest := r.CheckRequest{
 					Source:  r.Source{},
@@ -48,7 +48,7 @@ var _ = Describe("CheckCommand", func() {
 		Context("when given version is already the latest", func() {
 			It("should return only the latest version", func() {
 				fakeGithub := &fake.FGithub{
-					Pulls: []*r.Pull{
+					ListPRResult: []*r.Pull{
 						&r.Pull{Number: 1, SHA: "fake-sha1"},
 						&r.Pull{Number: 2, SHA: "fake-sha2"},
 						&r.Pull{Number: 3, SHA: "fake-sha3"},
@@ -70,7 +70,7 @@ var _ = Describe("CheckCommand", func() {
 		Context("when given version is not the latest", func() {
 			It("should return newer versions with given version", func() {
 				fakeGithub := &fake.FGithub{
-					Pulls: []*r.Pull{
+					ListPRResult: []*r.Pull{
 						&r.Pull{Number: 1, SHA: "fake-sha1"},
 						&r.Pull{Number: 2, SHA: "fake-sha2"},
 						&r.Pull{Number: 3, SHA: "fake-sha3"},

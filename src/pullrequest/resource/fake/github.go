@@ -4,7 +4,10 @@ import "pullrequest/resource"
 
 // FGithub is
 type FGithub struct {
-	Pulls []*resource.Pull
+	ListPRResult []*resource.Pull
+	ListPRError  error
+
+	DownloadPRError error
 
 	UpdatePRResult string
 	UpdatePRError  error
@@ -12,12 +15,12 @@ type FGithub struct {
 
 // ListPRs is
 func (fg *FGithub) ListPRs() ([]*resource.Pull, error) {
-	return fg.Pulls, nil
+	return fg.ListPRResult, fg.ListPRError
 }
 
 // DownloadPR is
 func (fg *FGithub) DownloadPR(destDir string, prNumber int) error {
-	return nil
+	return fg.DownloadPRError
 }
 
 // UpdatePR is

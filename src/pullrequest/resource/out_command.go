@@ -2,18 +2,16 @@ package resource
 
 import (
 	"fmt"
-	"io"
 )
 
 // OutCommand is
 type OutCommand struct {
 	github Github
-	writer io.Writer
 }
 
 // NewOutCommand is
-func NewOutCommand(g Github, w io.Writer) *OutCommand {
-	return &OutCommand{g, w}
+func NewOutCommand(g Github) *OutCommand {
+	return &OutCommand{g}
 }
 
 // Run is

@@ -1,19 +1,18 @@
 package resource
 
 import (
-	"io"
+	"fmt"
 	"os"
 )
 
 // InCommand is
 type InCommand struct {
 	github Github
-	writer io.Writer
 }
 
 // NewInCommand is
-func NewInCommand(g Github, w io.Writer) *InCommand {
-	return &InCommand{g, w}
+func NewInCommand(g Github) *InCommand {
+	return &InCommand{g}
 }
 
 // Run is
@@ -37,11 +36,11 @@ func (ic *InCommand) Run(destDir string, req InRequest) (InResponse, error) {
 				return resp, err
 			}
 
-			resp = InResponse{
+			return InResponse{
 				Version: Version{Ref: req.Version.Ref},
-			}
+			}, nil
 		}
 	}
 
-	return resp, nil
+	return resp, fmt.Errorf("version %s not found", req.Version.Ref)
 }

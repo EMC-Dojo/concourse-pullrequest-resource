@@ -42,7 +42,7 @@ type InParams struct {
 // InRequest is
 type InRequest struct {
 	Source   `json:"source"`
-	Version  *Version `json:"version"`
+	Version  Version `json:"version"`
 	InParams `json:"params"`
 }
 

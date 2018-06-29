@@ -3,6 +3,7 @@ package resource
 import (
 	"fmt"
 	"os"
+	"strconv"
 )
 
 // InCommand is
@@ -37,7 +38,10 @@ func (ic *InCommand) Run(destDir string, req InRequest) (InResponse, error) {
 			}
 
 			return InResponse{
-				Version: Version{Ref: req.Version.Ref},
+				Version: Version{
+					Ref: req.Version.Ref,
+					PR:  strconv.Itoa(pull.Number),
+				},
 			}, nil
 		}
 	}

@@ -32,6 +32,10 @@ git checkout pr
 type Pull struct {
 	Number int
 	SHA    string
+	URL    string
+	Body   string
+	Labels string
+	Title  string
 }
 
 // Github is
@@ -105,15 +109,11 @@ func (gc *GithubClient) ListPRs() ([]*Pull, error) {
 		return nil, err
 	}
 
-	return convert(pulls), nil
-}
-
-func convert(prs []*github.PullRequest) []*Pull {
-	pulls := make([]*Pull, len(prs))
-	for i, pr := range prs {
-		pulls[i] = &Pull{Number: pr.GetNumber(), SHA: pr.GetHead().GetSHA()}
+	var convertedPulls = []*Pull{}
+	for _, pull := range pulls {
+		convertedPulls = append(convertedPulls, convertPR(pull))
 	}
-	return pulls
+	return convertedPulls, nil
 }
 
 type pullFetcher struct {
@@ -149,7 +149,6 @@ func (gc *GithubClient) DownloadPR(destDir string, prNumber int) error {
 		return fmt.Errorf("executing template: %+v", err)
 	}
 
-	log.Infof("download script path: %s", downloadPRScriptPath)
 	log.Infof("repo path: %s", destDir)
 
 	cmd := exec.Command("/bin/sh", downloadPRScriptPath)
@@ -157,43 +156,16 @@ func (gc *GithubClient) DownloadPR(destDir string, prNumber int) error {
 		return fmt.Errorf("executing download script: %s, %+v", string(output), err)
 	}
 
-	log.Infof("listing comments for PR: %d", prNumber)
-	pull, resp, err := gc.client.PullRequests.Get(context.TODO(), gc.owner, gc.repo, prNumber)
+	pull, err := gc.GetPR(prNumber)
 	if err != nil {
-		return fmt.Errorf("listing comments: %+v", err)
+		return fmt.Errorf("getting pr %d: %+v", prNumber, err)
 	}
 
-	if err = resp.Body.Close(); err != nil {
-		return fmt.Errorf("closing resp body: %+v", err)
-	}
-
-	var labels string
-	for _, label := range pull.Labels {
-		labels += " " + label.GetName()
-	}
-
-	log.Infof("fetched %d labels: %s", len(pull.Labels), labels)
-
-	err = ioutil.WriteFile(path.Join(destDir, "pr_labels"), []byte(labels), 0644)
-	if err != nil {
-		return fmt.Errorf("writing to pr_labels: %+v", err)
-	}
-
-	err = ioutil.WriteFile(path.Join(destDir, "pr_number"), []byte(strconv.Itoa(prNumber)), 0644)
-	if err != nil {
-		return fmt.Errorf("writing to pr_number: %+v", err)
-	}
-
-	err = ioutil.WriteFile(path.Join(destDir, "pr_comment"), []byte(*pull.Body), 0644)
-	if err != nil {
-		return fmt.Errorf("writing to pr_comment: %+v", err)
-	}
-
-	return nil
+	return writePullToFile(destDir, pull)
 }
 
 // GetPR is
-func (gc *GithubClient) GetPR(number int) (*github.PullRequest, error) {
+func (gc *GithubClient) GetPR(number int) (*Pull, error) {
 	pull, resp, err := gc.client.PullRequests.Get(context.TODO(), gc.owner, gc.repo, number)
 	if err != nil {
 		return nil, err
@@ -204,7 +176,7 @@ func (gc *GithubClient) GetPR(number int) (*github.PullRequest, error) {
 		return nil, err
 	}
 
-	return pull, nil
+	return convertPR(pull), nil
 }
 
 // UpdatePR is
@@ -266,4 +238,48 @@ func oauthClient(ctx context.Context, source Source) (*http.Client, error) {
 
 func buildURLWithToken(url, token string) string {
 	return fmt.Sprintf("https://%s@%s", token, url[8:])
+}
+
+func writePullToFile(destDir string, pull *Pull) error {
+	if err := writeToFile(destDir, "pr_labels", pull.Labels); err != nil {
+		return err
+	}
+
+	if err := writeToFile(destDir, "pr_number", strconv.Itoa(pull.Number)); err != nil {
+		return err
+	}
+
+	if err := writeToFile(destDir, "pr_body", pull.Body); err != nil {
+		return err
+	}
+
+	if err := writeToFile(destDir, "pr_title", pull.Title); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func writeToFile(destDir, fileName, content string) error {
+	err := ioutil.WriteFile(path.Join(destDir, fileName), []byte(content), 0644)
+	if err != nil {
+		return fmt.Errorf("writing to %s: %+v", fileName, err)
+	}
+	return nil
+}
+
+func convertPR(pr *github.PullRequest) *Pull {
+	var labels string
+	for _, label := range pr.Labels {
+		labels += label.GetName() + "\n"
+	}
+
+	return &Pull{
+		Number: pr.GetNumber(),
+		SHA:    pr.GetHead().GetSHA(),
+		URL:    pr.GetURL(),
+		Title:  pr.GetTitle(),
+		Body:   pr.GetBody(),
+		Labels: labels,
+	}
 }

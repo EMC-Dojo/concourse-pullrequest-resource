@@ -2,7 +2,7 @@ package resource
 
 // Source is
 type Source struct {
-	Insecure    bool   `json:"skip_ssl_validation"`
+	Insecure    bool   `json:"skip_ssl_verification"`
 	AccessToken string `json:"access_token"`
 	Repo        string `json:"repo"`
 	Owner       string `json:"owner"`
@@ -12,6 +12,7 @@ type Source struct {
 // Version is
 type Version struct {
 	Ref string `json:"ref"`
+	PR  string `json:"pr"`
 }
 
 // Metadata is

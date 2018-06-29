@@ -1,5 +1,9 @@
 package resource
 
+import (
+	"strconv"
+)
+
 // CheckCommand is
 type CheckCommand struct {
 	github Github
@@ -24,7 +28,12 @@ func (cc *CheckCommand) Run(request CheckRequest) ([]Version, error) {
 	}
 
 	for i := len(pulls) - 1; i >= 0; i-- {
-		versions = append([]Version{Version{Ref: pulls[i].SHA}}, versions...)
+		version := Version{
+			Ref: pulls[i].SHA,
+			PR:  strconv.Itoa(pulls[i].Number),
+		}
+		versions = append([]Version{version}, versions...)
+
 		if request.Version.Ref == pulls[i].SHA {
 			break
 		}

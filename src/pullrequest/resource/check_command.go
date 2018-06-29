@@ -23,9 +23,11 @@ func (cc *CheckCommand) Run(request CheckRequest) ([]Version, error) {
 		return versions, nil
 	}
 
-	for _, pull := range pulls {
-		versions = append(versions, Version{Ref: pull.SHA})
+	for i := len(pulls) - 1; i >= 0; i-- {
+		versions = append([]Version{Version{Ref: pulls[i].SHA}}, versions...)
+		if request.Version.Ref == pulls[i].SHA {
+			break
+		}
 	}
-
 	return versions, nil
 }

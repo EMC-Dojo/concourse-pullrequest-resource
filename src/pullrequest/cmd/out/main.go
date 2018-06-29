@@ -28,7 +28,7 @@ func main() {
 		log.Fatalf("constructing github client: %+v", err)
 	}
 
-	command := r.NewOutCommand(github, os.Stderr)
+	command := r.NewOutCommand(github)
 	resp, err := command.Run(sourceDir, req)
 	if err != nil {
 		log.Fatalf("running command: %+v", err)

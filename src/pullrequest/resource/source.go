@@ -2,11 +2,11 @@ package resource
 
 // Source is
 type Source struct {
-	Insecure    bool   `json:"insecure"`
+	Insecure    bool   `json:"skip_ssl_validation"`
 	AccessToken string `json:"access_token"`
 	Repo        string `json:"repo"`
 	Owner       string `json:"owner"`
-	APIURL      string `json:"api_url"`
+	APIURL      string `json:"api_endpoint"`
 }
 
 // Version is

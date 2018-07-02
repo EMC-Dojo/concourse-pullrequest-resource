@@ -19,6 +19,8 @@ import (
 	"golang.org/x/oauth2"
 )
 
+var githubCheckContext = "concourse/ci"
+
 var downloadPRScriptPath = "/var/download_pr.sh"
 
 var downloadPRScriptBytes = `#!/bin/sh
@@ -192,7 +194,9 @@ func (gc *GithubClient) UpdatePR(sourceDir, status, repoPath string) (string, er
 		return "", fmt.Errorf("%s is not a valid status", status)
 	}
 	repoStatus := &github.RepoStatus{
-		State: &status,
+		State:   &status,
+		Context: &githubCheckContext,
+		Creator: &github.User{},
 	}
 
 	repoDir := path.Join(sourceDir, repoPath)

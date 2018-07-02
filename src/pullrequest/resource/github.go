@@ -12,7 +12,7 @@ import (
 	"os/exec"
 	"path"
 	"strconv"
-	"strings"
+	"time"
 
 	"github.com/google/go-github/github"
 	log "github.com/sirupsen/logrus"
@@ -22,7 +22,6 @@ import (
 var githubCheckContext = "concourse/ci"
 
 var downloadPRScriptPath = "/var/download_pr.sh"
-
 var downloadPRScriptBytes = `#!/bin/sh
 git -c http.sslVerify=false clone {{.RepoURL}} {{.DestDir}}/
 cd {{.DestDir}}
@@ -32,12 +31,13 @@ git checkout pr
 
 // Pull is
 type Pull struct {
-	Number int
-	SHA    string
-	URL    string
-	Body   string
-	Labels string
-	Title  string
+	Number          int
+	ID              string
+	LatestCommitSHA string
+	URL             string
+	Body            string
+	Labels          string
+	Title           string
 }
 
 // Github is
@@ -199,32 +199,27 @@ func (gc *GithubClient) UpdatePR(sourceDir, status, repoPath string) (string, er
 		Creator: &github.User{},
 	}
 
-	repoDir := path.Join(sourceDir, repoPath)
-	log.Infof("repo dir: %s", repoDir)
-
-	cmd := exec.Command("git", "rev-parse", "HEAD")
-	cmd.Dir = path.Join(repoDir)
-	output, err := cmd.Output()
-	log.Infof("git rev-parse output: %+v", string(output))
+	commitHashBytes, err := ioutil.ReadFile(path.Join(sourceDir, repoPath, "pr_last_commit_hash"))
 	if err != nil {
-		return "", fmt.Errorf("getting pr commit hash: %+v", err)
+		return "", fmt.Errorf("reading pr_last_commit_hash: %+v", err)
 	}
-	ref := strings.TrimRight(string(output), "\n\r")
 
-	returnedRepoStatus, resp, err := gc.client.Repositories.CreateStatus(context.TODO(), gc.owner, gc.repo, string(ref), repoStatus)
+	returnedRepoStatus, resp, err := gc.client.Repositories.CreateStatus(context.TODO(), gc.owner, gc.repo, string(commitHashBytes), repoStatus)
 	if err != nil {
 		return "", fmt.Errorf("creating status: %+v", err)
 	}
-
-	err = resp.Body.Close()
-	if err != nil {
+	if err = resp.Body.Close(); err != nil {
 		return "", fmt.Errorf("closing resp body: %+v", err)
 	}
-
 	if returnedRepoStatus.GetState() != status {
 		return "", errors.New("updating commit status")
 	}
-	return ref, nil
+
+	idBytes, err := ioutil.ReadFile(path.Join(sourceDir, repoPath, "pr_id"))
+	if err != nil {
+		return "", fmt.Errorf("reading pr_id: %+v", err)
+	}
+	return string(idBytes), nil
 }
 
 func oauthClient(ctx context.Context, source Source) (*http.Client, error) {
@@ -261,6 +256,14 @@ func writePullToFile(destDir string, pull *Pull) error {
 		return err
 	}
 
+	if err := writeToFile(destDir, "pr_last_commit_hash", pull.LatestCommitSHA); err != nil {
+		return err
+	}
+
+	if err := writeToFile(destDir, "pr_id", pull.ID); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -279,11 +282,12 @@ func convertPR(pr *github.PullRequest) *Pull {
 	}
 
 	return &Pull{
-		Number: pr.GetNumber(),
-		SHA:    pr.GetHead().GetSHA(),
-		URL:    pr.GetURL(),
-		Title:  pr.GetTitle(),
-		Body:   pr.GetBody(),
-		Labels: labels,
+		Number:          pr.GetNumber(),
+		LatestCommitSHA: pr.GetHead().GetSHA(),
+		ID:              fmt.Sprintf("%s-%s", pr.GetHead().GetSHA()[0:7], pr.GetUpdatedAt().Format(time.RFC3339)),
+		URL:             pr.GetURL(),
+		Title:           pr.GetTitle(),
+		Body:            pr.GetBody(),
+		Labels:          labels,
 	}
 }

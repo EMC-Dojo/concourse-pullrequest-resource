@@ -29,12 +29,12 @@ func (cc *CheckCommand) Run(request CheckRequest) ([]Version, error) {
 
 	for i := len(pulls) - 1; i >= 0; i-- {
 		version := Version{
-			Ref: pulls[i].SHA,
+			Ref: pulls[i].ID,
 			PR:  strconv.Itoa(pulls[i].Number),
 		}
 		versions = append([]Version{version}, versions...)
 
-		if request.Version.Ref == pulls[i].SHA {
+		if request.Version.Ref == pulls[i].ID {
 			break
 		}
 	}

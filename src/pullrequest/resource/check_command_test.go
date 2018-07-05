@@ -14,7 +14,7 @@ var _ = Describe("CheckCommand", func() {
 			It("should return latest versions", func() {
 				fakeGithub := &fake.FGithub{
 					ListPRResult: []*r.Pull{
-						&r.Pull{Number: 1, SHA: "fake-sha1"},
+						&r.Pull{Number: 1, Ref: "fake-ref1"},
 					},
 				}
 				checkCommand := r.NewCheckCommand(fakeGithub)
@@ -26,7 +26,7 @@ var _ = Describe("CheckCommand", func() {
 				versions, err := checkCommand.Run(checkRequest)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(versions).To(HaveLen(1))
-				Expect(versions[0].Ref).To(Equal("fake-sha1"))
+				Expect(versions[0].Ref).To(Equal("fake-ref1"))
 			})
 		})
 
@@ -49,21 +49,21 @@ var _ = Describe("CheckCommand", func() {
 			It("should return only the latest version", func() {
 				fakeGithub := &fake.FGithub{
 					ListPRResult: []*r.Pull{
-						&r.Pull{Number: 1, SHA: "fake-sha1"},
-						&r.Pull{Number: 2, SHA: "fake-sha2"},
-						&r.Pull{Number: 3, SHA: "fake-sha3"},
+						&r.Pull{Number: 1, Ref: "fake-ref1"},
+						&r.Pull{Number: 2, Ref: "fake-ref2"},
+						&r.Pull{Number: 3, Ref: "fake-ref3"},
 					},
 				}
 				checkCommand := r.NewCheckCommand(fakeGithub)
 				checkRequest := r.CheckRequest{
 					Source:  r.Source{},
-					Version: r.Version{Ref: "fake-sha3"},
+					Version: r.Version{Ref: "fake-ref3"},
 				}
 
 				versions, err := checkCommand.Run(checkRequest)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(versions).To(HaveLen(1))
-				Expect(versions[0].Ref).To(Equal("fake-sha3"))
+				Expect(versions[0].Ref).To(Equal("fake-ref3"))
 			})
 		})
 
@@ -71,22 +71,22 @@ var _ = Describe("CheckCommand", func() {
 			It("should return newer versions with given version", func() {
 				fakeGithub := &fake.FGithub{
 					ListPRResult: []*r.Pull{
-						&r.Pull{Number: 1, SHA: "fake-sha1"},
-						&r.Pull{Number: 2, SHA: "fake-sha2"},
-						&r.Pull{Number: 3, SHA: "fake-sha3"},
+						&r.Pull{Number: 1, Ref: "fake-ref1"},
+						&r.Pull{Number: 2, Ref: "fake-ref2"},
+						&r.Pull{Number: 3, Ref: "fake-ref3"},
 					},
 				}
 				checkCommand := r.NewCheckCommand(fakeGithub)
 				checkRequest := r.CheckRequest{
 					Source:  r.Source{},
-					Version: r.Version{Ref: "fake-sha2"},
+					Version: r.Version{Ref: "fake-ref2"},
 				}
 
 				versions, err := checkCommand.Run(checkRequest)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(versions).To(HaveLen(2))
-				Expect(versions[0].Ref).To(Equal("fake-sha2"))
-				Expect(versions[1].Ref).To(Equal("fake-sha3"))
+				Expect(versions[0].Ref).To(Equal("fake-ref2"))
+				Expect(versions[1].Ref).To(Equal("fake-ref3"))
 			})
 		})
 	})

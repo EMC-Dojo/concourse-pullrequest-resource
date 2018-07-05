@@ -32,7 +32,7 @@ git checkout pr
 // Pull is
 type Pull struct {
 	Number          int
-	ID              string
+	Ref             string
 	LatestCommitSHA string
 	URL             string
 	Body            string
@@ -260,7 +260,7 @@ func writePullToFile(destDir string, pull *Pull) error {
 		return err
 	}
 
-	if err := writeToFile(destDir, "pr_id", pull.ID); err != nil {
+	if err := writeToFile(destDir, "pr_id", pull.Ref); err != nil {
 		return err
 	}
 
@@ -284,7 +284,7 @@ func convertPR(pr *github.PullRequest) *Pull {
 	return &Pull{
 		Number:          pr.GetNumber(),
 		LatestCommitSHA: pr.GetHead().GetSHA(),
-		ID:              fmt.Sprintf("%s-%s", pr.GetHead().GetSHA()[0:7], pr.GetUpdatedAt().Format(time.RFC3339)),
+		Ref:             fmt.Sprintf("%s-%s", pr.GetHead().GetSHA()[0:7], pr.GetUpdatedAt().Format(time.RFC3339)),
 		URL:             pr.GetURL(),
 		Title:           pr.GetTitle(),
 		Body:            pr.GetBody(),

@@ -27,19 +27,19 @@ var _ = Describe("CheckCommand", func() {
 		It("should return downloaded version", func() {
 			fakeGithub := &fake.FGithub{
 				ListPRResult: []*r.Pull{
-					&r.Pull{Number: 1, SHA: "fake-sha1"},
-					&r.Pull{Number: 2, SHA: "fake-sha2"},
+					&r.Pull{Number: 1, Ref: "fake-ref1"},
+					&r.Pull{Number: 2, Ref: "fake-ref2"},
 				},
 			}
 			inCommand := r.NewInCommand(fakeGithub)
 			inRequest := r.InRequest{
 				Source:  r.Source{},
-				Version: r.Version{Ref: "fake-sha1"},
+				Version: r.Version{Ref: "fake-ref1"},
 			}
 
 			inResponse, err := inCommand.Run(fakeDestDir, inRequest)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(inResponse.Version.Ref).To(Equal("fake-sha1"))
+			Expect(inResponse.Version.Ref).To(Equal("fake-ref1"))
 		})
 	})
 
@@ -47,14 +47,14 @@ var _ = Describe("CheckCommand", func() {
 		It("should return error", func() {
 			fakeGithub := &fake.FGithub{
 				ListPRResult: []*r.Pull{
-					&r.Pull{Number: 1, SHA: "fake-sha1"},
-					&r.Pull{Number: 2, SHA: "fake-sha2"},
+					&r.Pull{Number: 1, Ref: "fake-ref1"},
+					&r.Pull{Number: 2, Ref: "fake-ref2"},
 				},
 			}
 			inCommand := r.NewInCommand(fakeGithub)
 			inRequest := r.InRequest{
 				Source:  r.Source{},
-				Version: r.Version{Ref: "fake-sha1"},
+				Version: r.Version{Ref: "fake-ref1"},
 			}
 
 			_, err := inCommand.Run("/dir/not/exist", inRequest)
@@ -66,15 +66,15 @@ var _ = Describe("CheckCommand", func() {
 		It("should return error", func() {
 			fakeGithub := &fake.FGithub{
 				ListPRResult: []*r.Pull{
-					&r.Pull{Number: 1, SHA: "fake-sha1"},
-					&r.Pull{Number: 2, SHA: "fake-sha2"},
+					&r.Pull{Number: 1, Ref: "fake-ref1"},
+					&r.Pull{Number: 2, Ref: "fake-ref2"},
 				},
 				DownloadPRError: errors.New("fake-error"),
 			}
 			inCommand := r.NewInCommand(fakeGithub)
 			inRequest := r.InRequest{
 				Source:  r.Source{},
-				Version: r.Version{Ref: "fake-sha1"},
+				Version: r.Version{Ref: "fake-ref1"},
 			}
 
 			_, err := inCommand.Run(fakeDestDir, inRequest)
@@ -91,7 +91,7 @@ var _ = Describe("CheckCommand", func() {
 			inCommand := r.NewInCommand(fakeGithub)
 			inRequest := r.InRequest{
 				Source:  r.Source{},
-				Version: r.Version{Ref: "fake-sha1"},
+				Version: r.Version{Ref: "fake-ref1"},
 			}
 
 			_, err := inCommand.Run(fakeDestDir, inRequest)
@@ -106,12 +106,12 @@ var _ = Describe("CheckCommand", func() {
 			inCommand := r.NewInCommand(fakeGithub)
 			inRequest := r.InRequest{
 				Source:  r.Source{},
-				Version: r.Version{Ref: "fake-sha1"},
+				Version: r.Version{Ref: "fake-ref1"},
 			}
 
 			_, err := inCommand.Run(fakeDestDir, inRequest)
 			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(Equal("version fake-sha1 not found"))
+			Expect(err.Error()).To(Equal("version fake-ref1 not found"))
 		})
 	})
 
@@ -119,8 +119,8 @@ var _ = Describe("CheckCommand", func() {
 		It("should return error", func() {
 			fakeGithub := &fake.FGithub{
 				ListPRResult: []*r.Pull{
-					&r.Pull{Number: 1, SHA: "fake-sha1"},
-					&r.Pull{Number: 2, SHA: "fake-sha2"},
+					&r.Pull{Number: 1, Ref: "fake-ref1"},
+					&r.Pull{Number: 2, Ref: "fake-ref2"},
 				},
 			}
 			inCommand := r.NewInCommand(fakeGithub)
